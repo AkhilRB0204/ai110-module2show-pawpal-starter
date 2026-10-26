@@ -29,8 +29,13 @@ Core user actions, based on the PawPal+ scenario:
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+My scheduler warns about conflicts but doesn't fix them. If two tasks have overlapping preferred times (like Mochi's 07:30 walk and Luna's 07:30 pill), it still puts both at 07:30 and adds a warning instead of moving one of them. It does check for overlapping time ranges and not just exact matches, so a 30-minute walk at 07:30 and a pill at 07:45 also get flagged.
+
+I think that's reasonable for a pet owner. A preferred time usually means something real, like a pill that has to be given with breakfast, and the scheduler doesn't know which task is safe to move. Some overlaps are fine anyway, since you can give a cat a pill while the dog is waiting by the door. A warning lets the owner decide, and it never crashes the app.
+
+A second tradeoff is that the time budget is filled greedily: highest priority first, then shortest. That's easy to explain, but it doesn't always fill the day perfectly. In my demo the 45-minute bath is skipped even though 40 minutes are free, and a smarter algorithm might swap tasks around to fit more in.
+
+When I asked the AI to simplify `detect_conflicts()`, it suggested two things. The first was using `itertools.combinations` to loop over every pair instead of nested loops with index slicing. I kept that because it's shorter and actually easier to read. The second was sorting by start time and doing a single sweep, which would be faster for huge lists. I didn't use that one because it's harder to follow, and a pet owner will only have maybe 5 to 20 tasks a day, so checking every pair is plenty fast.
 
 ---
 

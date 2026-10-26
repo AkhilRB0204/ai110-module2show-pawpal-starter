@@ -58,18 +58,56 @@ The backend lives in `pawpal_system.py` and is made of four classes:
 Output from `python main.py`:
 
 ```
-Today's Schedule for Jordan's pets
+
+All tasks, as added:
+  17:00  Fetch in the yard  Mochi  daily   todo
+  07:30  Morning walk       Mochi  daily   todo
+  07:00  Breakfast          Mochi  daily   todo
+  --:--  Bath               Mochi  weekly  todo
+  12:00  Brush coat         Luna   daily   todo
+  09:00  Clean litter box   Luna   daily   todo
+  07:30  Thyroid pill       Luna   daily   todo
+
+Sorted by time:
+  07:00  Breakfast          Mochi  daily   todo
+  07:30  Morning walk       Mochi  daily   todo
+  07:30  Thyroid pill       Luna   daily   todo
+  09:00  Clean litter box   Luna   daily   todo
+  12:00  Brush coat         Luna   daily   todo
+  17:00  Fetch in the yard  Mochi  daily   todo
+  --:--  Bath               Mochi  weekly  todo
+
+Only Luna's tasks:
+  12:00  Brush coat         Luna   daily   todo
+  09:00  Clean litter box   Luna   daily   todo
+  07:30  Thyroid pill       Luna   daily   todo
+
+Completed Breakfast; next one is due 2026-10-26.
+
+Completed tasks:
+  07:00  Breakfast          Mochi  daily   done
+
+Still to do:
+  17:00  Fetch in the yard  Mochi  daily   todo
+  07:30  Morning walk       Mochi  daily   todo
+  --:--  Bath               Mochi  weekly  todo
+  07:00  Breakfast          Mochi  daily   todo due 2026-10-26
+  12:00  Brush coat         Luna   daily   todo
+  09:00  Clean litter box   Luna   daily   todo
+  07:30  Thyroid pill       Luna   daily   todo
+
+Today's Schedule for Jordan's pets (2026-10-25)
 ==============================================================
-07:00-07:10  Breakfast          Mochi  [high priority]
-07:10-07:20  Clean litter box   Luna   [medium priority]
+07:30-07:35  Thyroid pill       Luna   [high priority, preferred time]
 07:30-08:00  Morning walk       Mochi  [high priority, preferred time]
-08:00-08:05  Thyroid pill       Luna   [high priority, preferred time]
-08:05-08:20  Brush coat         Luna   [medium priority]
-08:20-08:40  Fetch in the yard  Mochi  [medium priority]
+09:00-09:10  Clean litter box   Luna   [medium priority, preferred time]
+12:00-12:15  Brush coat         Luna   [medium priority, preferred time]
+17:00-17:20  Fetch in the yard  Mochi  [medium priority, preferred time]
 ==============================================================
-Scheduled 6 task(s) using 90 of 120 available minutes.
+Scheduled 5 task(s) using 80 of 120 available minutes.
 Tasks were chosen by priority (high first, then shorter tasks), placed at their preferred time if they had one, and otherwise fit into open slots starting at 07:00.
-Skipped Bath (Mochi): needs 45 min, only 30 min left.
+Skipped Bath (Mochi): needs 45 min, only 40 min left.
+Warning: Thyroid pill at 07:30 overlaps Morning walk at 07:30 (Luna and Mochi).
 ```
 
 ## 🧪 Testing PawPal+
@@ -88,23 +126,23 @@ Sample test output:
 $ python -m pytest
 ============================= test session starts ==============================
 platform darwin -- Python 3.13.7, pytest-9.1.1, pluggy-1.7.0
-collected 4 items
+collected 11 items
 
-tests/test_pawpal.py ....                                                [100%]
+tests/test_pawpal.py ...........                                         [100%]
 
-============================== 4 passed in 0.01s ===============================
+============================== 11 passed in 0.01s ==============================
 ```
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
-| Feature | Method(s) | Notes |
+| Feature | Method(s) | How it works |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Sort by time | `Scheduler.sort_by_time()` | Uses `sorted()` with a lambda key that converts each task's `"HH:MM"` preferred time to minutes after midnight, so `"9:15"` and `"09:15"` sort the same. Tasks with no preferred time go last. |
+| Sort by priority | `Scheduler.sort_by_priority()` | Sorts high priority first, then shortest duration first. `generate_plan()` uses this order to decide what gets time first. |
+| Filtering | `Scheduler.filter_tasks(pet_name=None, completed=None)` | Reads every task through `Owner.get_all_tasks()` and keeps the ones matching a pet name, a completion status, or both. Leaving an argument as `None` means "don't filter on this". |
+| Time budget | `Scheduler.fit_to_time()` | Walks the priority-sorted tasks and keeps each one that still fits in the owner's available minutes. Tasks that don't fit go into `scheduler.skipped` with the reason. |
+| Recurring tasks | `Scheduler.mark_task_complete()`, `Task.next_occurrence()`, `Task.is_due_today()` | Completing a `daily` or `weekly` task marks it done and adds a fresh copy to the same pet, due `today + timedelta(days=1)` or `today + timedelta(weeks=1)`. A `once` task doesn't repeat. `is_due_today()` keeps future copies out of today's plan. |
+| Conflict detection | `Scheduler.detect_conflicts()` | Checks every pair of planned tasks (`itertools.combinations`) for overlapping time ranges, not just identical start times, for the same pet or different pets. It returns warning strings instead of raising an error, and `explain_plan()` and the app both show them. |
 
 ## 📸 Demo Walkthrough
 

@@ -102,7 +102,7 @@ if owner.pets:
             priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
         col4, col5 = st.columns(2)
         with col4:
-            frequency = st.selectbox("Frequency", ["daily", "weekly"])
+            frequency = st.selectbox("Frequency", ["daily", "weekly", "once"])
         with col5:
             preferred = st.text_input("Preferred time (HH:MM, optional)")
         if st.form_submit_button("Add task"):
@@ -127,19 +127,54 @@ if owner.pets:
 
     tasks = owner.get_all_tasks()
     if tasks:
+        tools = Scheduler(owner)
+        col1, col2 = st.columns(2)
+        with col1:
+            pet_filter = st.selectbox("Show pet", ["All pets"] + [p.name for p in owner.pets])
+        with col2:
+            status_filter = st.selectbox("Show status", ["To do", "Done", "All"])
+        shown = tools.sort_by_time(
+            tools.filter_tasks(
+                pet_name=None if pet_filter == "All pets" else pet_filter,
+                completed={"To do": False, "Done": True, "All": None}[status_filter],
+            )
+        )
         st.table(
             [
                 {
                     "Pet": t.pet_name,
                     "Task": t.title,
+                    "Preferred time": t.preferred_time or "-",
                     "Minutes": t.duration,
                     "Priority": t.priority,
                     "Frequency": t.frequency,
-                    "Preferred time": t.preferred_time or "-",
+                    "Due": str(t.due_date) if t.due_date else "today",
+                    "Done": "yes" if t.completed else "no",
                 }
-                for t in tasks
+                for t in shown
             ]
         )
+
+        open_tasks = tools.sort_by_time(tools.filter_tasks(completed=False))
+        if open_tasks:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                choice = st.selectbox(
+                    "Mark a task complete",
+                    range(len(open_tasks)),
+                    format_func=lambda i: f"{open_tasks[i].pet_name}: {open_tasks[i].title}",
+                )
+            with col2:
+                st.write("")
+                if st.button("Complete"):
+                    done = open_tasks[choice]
+                    next_task = tools.mark_task_complete(done)
+                    if next_task:
+                        st.success(
+                            f"Completed {done.title}. Next one is due {next_task.due_date}."
+                        )
+                    else:
+                        st.success(f"Completed {done.title}.")
     else:
         st.info("No tasks yet. Add one above.")
 else:
