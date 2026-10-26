@@ -38,21 +38,15 @@ Core user actions, based on the PawPal+ scenario:
 
 **a. How you used AI**
 
-I used Claude Code as an agent for most of the design and implementation steps:
+I used Claude Code for pretty much every step of this phase. First I had it read the README scenario and pick out the three main things a user needs to do. Then I used it to brainstorm the classes and what each one should store and do, and to turn that into a Mermaid UML diagram. After that it wrote the class skeletons (with dataclasses for Task, Pet, and Owner), the actual scheduling logic, the main.py demo, and the tests.
 
-- **Design brainstorming:** I asked it to identify the core user actions from the README scenario and to brainstorm the objects, attributes, and methods the system needed.
-- **UML:** it turned the brainstorm into a Mermaid class diagram, then reviewed that diagram for relationships that didn't make sense and for unnecessary complexity.
-- **Code generation:** it generated the class skeletons in `pawpal_system.py` (using dataclasses for `Task`, `Pet`, and `Owner`), then the full scheduling logic, the `main.py` demo, and the pytest tests.
-
-The most helpful prompts were specific and tied to an artifact that already existed, for example "based on my UML, generate class skeletons" or "review the diagram and remove unnecessary complexity." Open-ended prompts tended to produce more than I needed.
+The prompts that worked best were the ones that pointed at something I already had, like "use my UML to make the class skeletons" or "look at the diagram and cut anything unnecessary." When I was vague it gave me more than I needed.
 
 **b. Judgment and verification**
 
-- **Rejected a fifth class.** The first brainstorm suggested a separate `DailyPlan` class to hold the schedule and its explanations. My design called for four classes, so I folded that job into `Scheduler` (its `plan` and `skipped` lists plus `explain_plan()`).
-- **Trimmed the first UML.** The first version had redundant pieces: a `Scheduler.collect_tasks()` method that duplicated `Owner.get_all_tasks()`, getter and setter methods that only wrapped public attributes, and fields such as `age`, `special_needs`, and `category` that no method used. I had these removed so the design only holds what the scheduler needs.
-- **Kept the Scheduler reading from the Owner.** I checked that `generate_plan()` gets its tasks through `Owner.get_all_tasks()` rather than from a single pet, so the plan covers every pet.
+I didn't take everything it suggested. Its first brainstorm had five classes, including a separate DailyPlan class, but the assignment is built around four, so I had that folded into the Scheduler instead. I also had it review the first UML and it found stuff that didn't need to be there: a collect_tasks() method that did the same thing as Owner.get_all_tasks(), getter/setter methods for attributes that were already public, and fields like age, special_needs, and category that nothing actually used. I cut all of those. I also made sure the Scheduler gets its tasks through Owner.get_all_tasks() and not from just one pet, since it needs to plan for all of them.
 
-To verify the result, I ran `python main.py` and checked the printed schedule by hand: tasks with a preferred time landed at that time, other tasks filled the gaps without overlapping, and the 45-minute bath was skipped once only 30 minutes were left. I also ran `python -m pytest`, and all 4 tests passed: task completion, task addition, planning across both pets, and skipping tasks that don't fit.
+To check that it actually worked, I ran python main.py and went through the schedule myself. The walk and the pill showed up at their preferred times, the other tasks filled in around them without overlapping, and the bath got skipped because it was 45 minutes and there were only 30 left. I also ran python -m pytest and all 4 tests passed.
 
 ---
 
