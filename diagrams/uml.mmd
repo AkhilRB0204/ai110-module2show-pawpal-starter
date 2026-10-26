@@ -29,9 +29,11 @@ classDiagram
         +str frequency
         +str preferred_time
         +bool completed
+        +date last_completed
+        +str pet_name
         +priority_rank() int
         +is_due_today(day: date) bool
-        +mark_complete() None
+        +mark_complete(day: date) None
     }
 
     class Scheduler {
@@ -41,8 +43,8 @@ classDiagram
         +list skipped
         +sort_tasks(tasks: list~Task~) list~Task~
         +filter_tasks(tasks: list~Task~) list~Task~
-        +detect_conflicts() list
-        +generate_plan() list
+        +detect_conflicts() list~str~
+        +generate_plan(day: date) list
         +explain_plan() str
     }
 

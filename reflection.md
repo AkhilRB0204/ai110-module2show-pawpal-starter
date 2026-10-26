@@ -38,13 +38,21 @@ Core user actions, based on the PawPal+ scenario:
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used Claude Code as an agent for most of the design and implementation steps:
+
+- **Design brainstorming:** I asked it to identify the core user actions from the README scenario and to brainstorm the objects, attributes, and methods the system needed.
+- **UML:** it turned the brainstorm into a Mermaid class diagram, then reviewed that diagram for relationships that didn't make sense and for unnecessary complexity.
+- **Code generation:** it generated the class skeletons in `pawpal_system.py` (using dataclasses for `Task`, `Pet`, and `Owner`), then the full scheduling logic, the `main.py` demo, and the pytest tests.
+
+The most helpful prompts were specific and tied to an artifact that already existed, for example "based on my UML, generate class skeletons" or "review the diagram and remove unnecessary complexity." Open-ended prompts tended to produce more than I needed.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+- **Rejected a fifth class.** The first brainstorm suggested a separate `DailyPlan` class to hold the schedule and its explanations. My design called for four classes, so I folded that job into `Scheduler` (its `plan` and `skipped` lists plus `explain_plan()`).
+- **Trimmed the first UML.** The first version had redundant pieces: a `Scheduler.collect_tasks()` method that duplicated `Owner.get_all_tasks()`, getter and setter methods that only wrapped public attributes, and fields such as `age`, `special_needs`, and `category` that no method used. I had these removed so the design only holds what the scheduler needs.
+- **Kept the Scheduler reading from the Owner.** I checked that `generate_plan()` gets its tasks through `Owner.get_all_tasks()` rather than from a single pet, so the plan covers every pet.
+
+To verify the result, I ran `python main.py` and checked the printed schedule by hand: tasks with a preferred time landed at that time, other tasks filled the gaps without overlapping, and the 45-minute bath was skipped once only 30 minutes were left. I also ran `python -m pytest`, and all 4 tests passed: task completion, task addition, planning across both pets, and skipping tasks that don't fit.
 
 ---
 

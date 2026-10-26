@@ -42,16 +42,34 @@ pip install -r requirements.txt
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
 
+## 🧠 Implementation Summary
+
+The backend lives in `pawpal_system.py` and is made of four classes:
+
+- **`Task`** (dataclass): one care activity with a title, duration, priority, frequency (daily or weekly), optional preferred time, and completion status. It can rank its own priority, report whether it is due on a given day, and mark itself complete.
+- **`Pet`** (dataclass): a pet's name, species and breed, plus its list of tasks. Adding a task stamps it with the pet's name so the schedule can show whose task it is.
+- **`Owner`** (dataclass): the owner's name, daily time budget, and pets. `get_all_tasks()` returns every pet's tasks in one list.
+- **`Scheduler`**: the planner. `generate_plan()` reads all tasks through `Owner.get_all_tasks()`, keeps the ones due today, sorts them by priority (then shortest first), drops tasks that no longer fit in the owner's available minutes, places tasks with a preferred time at that time, and fills the rest into open slots from the start of the day. `explain_plan()` summarizes the time used, why tasks were ordered that way, which tasks were skipped, and any overlapping time slots.
+
+`main.py` is a terminal demo that builds an owner with two pets and prints today's schedule.
+
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+Output from `python main.py`:
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+Today's Schedule for Jordan's pets
+==============================================================
+07:00-07:10  Breakfast          Mochi  [high priority]
+07:10-07:20  Clean litter box   Luna   [medium priority]
+07:30-08:00  Morning walk       Mochi  [high priority, preferred time]
+08:00-08:05  Thyroid pill       Luna   [high priority, preferred time]
+08:05-08:20  Brush coat         Luna   [medium priority]
+08:20-08:40  Fetch in the yard  Mochi  [medium priority]
+==============================================================
+Scheduled 6 task(s) using 90 of 120 available minutes.
+Tasks were chosen by priority (high first, then shorter tasks), placed at their preferred time if they had one, and otherwise fit into open slots starting at 07:00.
+Skipped Bath (Mochi): needs 45 min, only 30 min left.
 ```
 
 ## 🧪 Testing PawPal+
@@ -67,7 +85,14 @@ pytest --cov
 Sample test output:
 
 ```
-# Paste your pytest output here
+$ python -m pytest
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-9.1.1, pluggy-1.7.0
+collected 4 items
+
+tests/test_pawpal.py ....                                                [100%]
+
+============================== 4 passed in 0.01s ===============================
 ```
 
 ## 📐 Smarter Scheduling
