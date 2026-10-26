@@ -1,0 +1,68 @@
+classDiagram
+    %% PawPal+ final design, matching pawpal_system.py.
+    %% Changes from the Phase 1 draft (uml.mmd before implementation):
+    %%   - Task gained due_date and pet_name; next_occurrence() creates the next recurring copy.
+    %%   - Owner gained get_pet().
+    %%   - Scheduler's sort_tasks/filter_tasks became sort_by_priority, sort_by_time,
+    %%     filter_tasks (by pet/status), and fit_to_time (time budget);
+    %%     mark_task_complete() was added for recurring tasks.
+
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        +list~Pet~ pets
+        +add_pet(pet: Pet) None
+        +remove_pet(pet_name: str) None
+        +get_pet(pet_name: str) Pet
+        +get_all_tasks() list~Task~
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +list~Task~ tasks
+        +add_task(task: Task) None
+        +remove_task(task_title: str) None
+        +edit_task(task_title: str, changes: dict) None
+    }
+
+    class Task {
+        +str title
+        +int duration
+        +str priority
+        +str frequency
+        +str preferred_time
+        +bool completed
+        +date due_date
+        +str pet_name
+        +priority_rank() int
+        +is_due_today(day: date) bool
+        +mark_complete() None
+        +next_occurrence(day: date) Task
+    }
+
+    class Scheduler {
+        +Owner owner
+        +str day_start
+        +list~tuple~ plan
+        +list~tuple~ skipped
+        +sort_by_priority(tasks: list~Task~) list~Task~
+        +sort_by_time(tasks: list~Task~) list~Task~
+        +filter_tasks(pet_name: str, completed: bool) list~Task~
+        +fit_to_time(tasks: list~Task~) list~Task~
+        +mark_task_complete(task: Task, day: date) Task
+        +detect_conflicts() list~str~
+        +generate_plan(day: date) list~tuple~
+        +explain_plan() str
+    }
+
+    Owner "1" *-- "0..*" Pet : has
+    Pet "1" *-- "0..*" Task : needs
+    Scheduler --> Owner : reads all tasks from
+    Scheduler ..> Pet : adds next occurrence to
+    Scheduler ..> Task : sorts, filters, schedules
+    Task ..> Task : creates next occurrence
+
+    note for Scheduler "plan entries are (start_time, task, reason)<br>skipped entries are (task, reason)"

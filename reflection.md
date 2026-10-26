@@ -10,13 +10,17 @@ Core user actions, based on the PawPal+ scenario:
 2. **Add and manage care tasks.** The user can add care tasks for their pet, such as a walk, feeding, medication, grooming, or enrichment. Each task has at least a duration and a priority, and the user can edit or remove a task later as their routine changes.
 3. **Generate and view today's plan.** The user can ask PawPal+ to build a daily schedule that fits the tasks into the time available, putting higher-priority tasks first. The app shows the plan clearly, explains why it chose that order, and notes any tasks it had to leave out.
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+My initial UML had four classes. `Owner` held the owner's name, how many minutes they had that day, their preferences, and their list of pets. `Pet` held the pet's details and its own list of tasks. `Task` was one care activity with a title, duration, priority, frequency, and an optional preferred time. `Scheduler` was the "brain" that took an owner and built the daily plan: sorting tasks, dropping the ones that didn't fit, detecting conflicts, and explaining the result.
+
+The relationships were simple: an owner has pets, a pet has tasks, and the scheduler plans for an owner. I kept the data in the first three classes and all the decision-making in `Scheduler`, so each class had one job.
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+Yes, in a few ways (the final version is in `diagrams/uml_final.mmd`).
+
+- **Recurring tasks changed `Task`.** At first I tracked `last_completed` to decide when a task was due again. When I added automatic recurrence, I switched to a `due_date` field. Completing a task now creates a new copy with `due_date = today + timedelta(days=1)` (or 7 days for weekly), which is easier to understand and test.
+- **`Task` got a `pet_name`.** Once the scheduler mixed tasks from every pet into one plan, the output needed to say whose task each one was, so `Pet.add_task()` stamps the pet's name on it.
+- **The Scheduler's methods got clearer names.** The draft had `sort_tasks` and `filter_tasks`, where "filter" meant "fit into the time budget". When I added filtering by pet and status, that name was confusing, so I split things into `sort_by_priority`, `sort_by_time`, `filter_tasks` (pet and status), and `fit_to_time` (budget). I also added `mark_task_complete()` and `Owner.get_pet()` for recurrence.
 
 ---
 
@@ -24,8 +28,14 @@ Core user actions, based on the PawPal+ scenario:
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers:
+
+- **Time available:** the owner's minutes for the day. This is a hard limit, and tasks that don't fit are skipped with a reason.
+- **Priority:** high, then medium, then low decides who gets time first. Ties go to the shorter task, so more things fit.
+- **Preferred time:** a task with a set time is placed exactly there.
+- **Due date and completion:** finished tasks and future copies of recurring tasks stay out of today's plan, and overdue ones stay in.
+
+I ranked them by what would hurt a pet most if it went wrong. Missing a medication or a meal is worse than skipping a bath, so priority decides what makes the cut. Time is next because it's the real-world limit: an owner can't do 3 hours of tasks in 1 hour. Preferred times come after that, since they decide when a task happens but not whether it happens. I didn't use the owner's `preferences` dictionary in the algorithm yet, because the three constraints above already covered what the scenario asked for.
 
 **b. Tradeoffs**
 
@@ -51,7 +61,14 @@ The prompts that worked best were the ones that pointed at something I already h
 
 I didn't take everything it suggested. Its first brainstorm had five classes, including a separate DailyPlan class, but the assignment is built around four, so I had that folded into the Scheduler instead. I also had it review the first UML and it found stuff that didn't need to be there: a collect_tasks() method that did the same thing as Owner.get_all_tasks(), getter/setter methods for attributes that were already public, and fields like age, special_needs, and category that nothing actually used. I cut all of those. I also made sure the Scheduler gets its tasks through Owner.get_all_tasks() and not from just one pet, since it needs to plan for all of them.
 
-To check that it actually worked, I ran python main.py and went through the schedule myself. The walk and the pill showed up at their preferred times, the other tasks filled in around them without overlapping, and the bath got skipped because it was 45 minutes and there were only 30 left. I also ran python -m pytest and all 4 tests passed.
+To check that it actually worked, I ran python main.py and went through the schedule myself. The walk and the pill showed up at their preferred times, the other tasks filled in around them without overlapping, and the bath got skipped because it was 45 minutes and there were only 30 left. I also ran python -m pytest and all 4 tests passed (the suite later grew to 22).
+
+**c. AI strategy**
+
+- **Most effective features.** Agent mode was the biggest help, because it could edit several files at once (`pawpal_system.py`, `main.py`, the tests, the README, and the UML) and then run `python main.py` and `pytest` itself to check the result. That loop caught a real bug: a test it wrote for completing the same task twice failed, and the fix went into `mark_task_complete()`. It also used Streamlit's built-in test runner to click through the app, so I knew the UI worked before opening it. Pointing it at existing files ("based on my UML...", "based on my skeletons...") gave much better results than open-ended questions.
+- **A suggestion I rejected or modified.** The first design had a fifth class, `DailyPlan`, just to hold the schedule. I rejected it and kept the plan inside `Scheduler`, because the assignment is built around four classes and the extra class didn't add any behavior. Later, when simplifying `detect_conflicts()`, I kept the readable `itertools.combinations` version and rejected the faster sort-and-sweep one, because a pet owner only has a handful of tasks.
+- **Chat sessions.** Honestly, I did most of this project in one long session instead of separate ones per phase. The upside was that the AI remembered earlier decisions, like the four-class design and which methods had been renamed. The downside was that the conversation got long, and I had to keep asking it what had already been done. Next time I'd start a new session for each phase (design, implementation, algorithms, testing) and paste in only the files that phase needs. That would keep each conversation focused and make it obvious which prompts produced which changes.
+- **Being the lead architect.** The AI can write a whole class in seconds, so the hard part isn't typing code. It's deciding what the system should be. My job was to set the shape (four classes, the scheduler reads through `Owner.get_all_tasks()`), say no to extras, and check every result by running it. When I gave clear constraints, the AI did good work. When I didn't, it added things I didn't need. I learned that I have to own the design and the verification, even when I didn't write every line.
 
 ---
 
@@ -73,12 +90,15 @@ I'd say 4 out of 5. Every core feature has passing tests, including the tricky c
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+I'm most satisfied with how the scheduler explains itself. It doesn't just print a list. It says why each task is where it is, what got left out and why, and which tasks clash. I'm also happy with the test suite, because writing edge-case tests found a real bug (duplicate copies when a task is completed twice) before anyone hit it in the app.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+- **Use the owner's preferences.** Things like "walks in the morning" are stored but not used by the algorithm yet.
+- **Help fix conflicts.** Offer to move a flexible task to the next free slot, instead of only warning.
+- **Fix the known gaps.** Handle tasks that run past midnight, and give tasks an ID so `remove_task()` doesn't delete every task with the same title.
+- **Save data.** Keep pets and tasks in a file so they survive closing the app, since `session_state` only lasts one session.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+Design first, then let the AI build. Having the UML and the four-class plan before writing code meant I could judge every AI suggestion against something concrete: does this fit the design, or is it extra? Without that, it would have been easy to accept whatever looked impressive and end up with a messy system I didn't fully understand.

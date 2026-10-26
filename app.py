@@ -6,37 +6,22 @@ st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
 st.title("🐾 PawPal+")
 
-st.markdown(
-    """
-Welcome to the PawPal+ starter app.
-
-This file is intentionally thin. It gives you a working Streamlit app so you can start quickly,
-but **it does not implement the project logic**. Your job is to design the system and build it.
-
-Use this app as your interactive demo once your backend classes/functions exist.
-"""
+st.caption(
+    "Plan your pets' care for the day. Add your pets and their tasks, then PawPal+ builds "
+    "a schedule that fits your time, puts the most important care first, and warns you "
+    "about anything that clashes."
 )
 
-with st.expander("Scenario", expanded=True):
-    st.markdown(
-        """
-**PawPal+** is a pet care planning assistant. It helps a pet owner plan care tasks
-for their pet(s) based on constraints like time, priority, and preferences.
 
-You will design and implement the scheduling logic and connect it to this Streamlit UI.
-"""
-    )
+def valid_time(text: str) -> bool:
+    """Return True if text is a real 24-hour clock time like 07:30."""
+    try:
+        minutes = to_minutes(text)
+    except ValueError:
+        return False
+    hours, mins = text.split(":")
+    return 0 <= int(hours) < 24 and 0 <= int(mins) < 60 and 0 <= minutes < 24 * 60
 
-with st.expander("What you need to build", expanded=True):
-    st.markdown(
-        """
-At minimum, your system should:
-- Represent pet care tasks (what needs to happen, how long it takes, priority)
-- Represent the pet and the owner (basic info and preferences)
-- Build a plan/schedule for a day that chooses and orders tasks based on constraints
-- Explain the plan (why each task was chosen and when it happens)
-"""
-    )
 
 st.divider()
 
@@ -107,11 +92,10 @@ if owner.pets:
             preferred = st.text_input("Preferred time (HH:MM, optional)")
         if st.form_submit_button("Add task"):
             preferred = preferred.strip() or None
-            try:
-                if preferred:
-                    to_minutes(preferred)
-            except ValueError:
-                st.error("Preferred time must look like 08:30.")
+            if not task_title.strip():
+                st.error("Enter a title for the task.")
+            elif preferred and not valid_time(preferred):
+                st.error("Preferred time must be a 24-hour time like 08:30.")
             else:
                 pet = next(p for p in owner.pets if p.name == pet_choice)
                 pet.add_task(
@@ -182,28 +166,60 @@ else:
 
 st.divider()
 
-st.subheader("Build Schedule")
+st.subheader("Today's Schedule")
 day_start = st.text_input("Day starts at (HH:MM)", value="08:00")
 
-if st.button("Generate schedule"):
-    scheduler = Scheduler(owner, day_start=day_start)
+if st.button("Generate schedule", type="primary"):
+    if not valid_time(day_start.strip()):
+        st.error("Day start must be a 24-hour time like 08:00.")
+        st.stop()
+
+    scheduler = Scheduler(owner, day_start=day_start.strip())
     plan = scheduler.generate_plan()
+    conflicts = scheduler.detect_conflicts()
+    used = sum(task.duration for _, task, _ in plan)
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Tasks scheduled", len(plan))
+    col2.metric("Minutes used", f"{used} / {owner.available_minutes}")
+    col3.metric("Conflicts", len(conflicts))
+
+    # Conflicts go first, above the table, so the owner sees them before
+    # following the plan. Each one names both tasks and suggests a fix.
+    if conflicts:
+        st.warning(
+            "**Some tasks overlap.** PawPal+ kept them at your preferred times "
+            "because it can't tell which one is safe to move. Change one task's "
+            "preferred time, or do them together if that works for you."
+        )
+        for conflict in conflicts:
+            st.warning(conflict)
+
     if plan:
-        st.success(f"Today's schedule for {owner.name}'s pets")
+        st.success(f"Here's today's plan for {owner.name}'s pets, in time order.")
         st.table(
             [
                 {
                     "Time": f"{start}-{to_hhmm(to_minutes(start) + task.duration)}",
                     "Pet": task.pet_name,
                     "Task": task.title,
+                    "Priority": task.priority,
                     "Why": reason,
                 }
                 for start, task, reason in plan
             ]
         )
     else:
-        st.warning("Nothing to schedule. Add tasks that fit in the time available.")
-    for conflict in scheduler.detect_conflicts():
-        st.warning(f"Conflict: {conflict}")
-    st.markdown("**Why this plan**")
-    st.text(scheduler.explain_plan())
+        st.info("Nothing to schedule today. Add tasks, or check that they fit in your time.")
+
+    if scheduler.skipped:
+        st.info(
+            "**Left out today** (not enough time left):\n"
+            + "\n".join(
+                f"- {task.title} ({task.pet_name}): {reason}"
+                for task, reason in scheduler.skipped
+            )
+        )
+
+    with st.expander("Why this plan?"):
+        st.text(scheduler.explain_plan())
