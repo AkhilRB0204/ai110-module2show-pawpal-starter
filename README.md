@@ -112,26 +112,40 @@ Warning: Thyroid pill at 07:30 overlaps Morning walk at 07:30 (Luna and Mochi).
 
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
+Run the tests from the project folder:
 
-# Run with coverage:
-pytest --cov
+```bash
+python -m pytest
 ```
 
-Sample test output:
+The 22 tests in `tests/test_pawpal.py` cover:
+
+- **Basics:** `mark_complete()` changes a task's status, and `add_task()` increases a pet's task count.
+- **Sorting:** `sort_by_time()` returns tasks in chronological order (including times like `9:15` with no leading zero), puts tasks with no time last, and keeps same-time tasks in the order they were added.
+- **Filtering:** `filter_tasks()` by pet, by completion status, and by both together.
+- **Recurring tasks:** completing a daily task creates a copy due the next day with the same details, a weekly task comes back in 7 days, a `once` task doesn't repeat, and completing the same task twice doesn't create a duplicate.
+- **Conflict detection:** warnings for two tasks at the exact same time (same pet or different pets) and for partial overlaps, and no warning for back-to-back tasks.
+- **Scheduling:** plans include every pet's tasks, skip tasks that don't fit the time budget (including a budget of 0), leave out completed and future tasks but keep overdue ones, and fit untimed tasks into gaps without overlapping timed ones.
+- **Edge cases:** an owner with no pets, a pet with no tasks, and editing a task field that doesn't exist.
+
+Output of a successful run:
 
 ```
 $ python -m pytest
 ============================= test session starts ==============================
 platform darwin -- Python 3.13.7, pytest-9.1.1, pluggy-1.7.0
-collected 11 items
+rootdir: /Users/akhilbolla/ai110-module2show-pawpal-starter
+plugins: anyio-4.15.1
+collected 22 items
 
-tests/test_pawpal.py ...........                                         [100%]
+tests/test_pawpal.py ......................                              [100%]
 
-============================== 11 passed in 0.01s ==============================
+============================== 22 passed in 0.01s ==============================
 ```
+
+**Confidence level: ★★★★☆ (4/5)**
+
+Every core behavior has a passing test, and writing the edge-case tests caught a real bug: marking the same task complete twice used to create two copies for the next day, and it's fixed now. I'm not giving it 5 stars because some cases still aren't handled or tested: tasks that run past midnight, invalid times like `25:99`, and `remove_task()` removing every task with the same title, including future copies of a recurring task.
 
 ## 📐 Smarter Scheduling
 

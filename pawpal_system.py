@@ -162,6 +162,8 @@ class Scheduler:
 
     def mark_task_complete(self, task: Task, day: date | None = None) -> Task | None:
         """Complete a task and, if it repeats, add its next occurrence to the same pet."""
+        if task.completed:
+            return None  # already done; don't create a second copy
         day = day or date.today()
         task.mark_complete()
         next_task = task.next_occurrence(day)

@@ -59,13 +59,13 @@ To check that it actually worked, I ran python main.py and went through the sche
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+I have 22 tests. They cover the basics (completing a task, adding a task to a pet), sorting by time, filtering by pet and status, recurring tasks (daily, weekly, and one-time), conflict detection (exact same time, partial overlap, and back-to-back tasks that shouldn't be flagged), and the scheduler itself (multiple pets, the time budget, skipping completed and future tasks, and filling gaps around timed tasks). I also tested edge cases like an owner with no pets, a pet with no tasks, and a budget of 0 minutes.
+
+These mattered because the scheduler's whole job is to get the order and timing right, and a bug there wouldn't crash anything. It would just quietly give the owner a wrong plan. One of the edge-case tests actually caught a real bug: marking the same task complete twice created two copies for the next day. That could easily happen in the app with a double click, so I fixed `mark_task_complete()` to do nothing if the task is already done.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+I'd say 4 out of 5. Every core feature has passing tests, including the tricky cases. If I had more time I'd test and handle tasks that run past midnight (right now a task could be scheduled at "25:00"), invalid times like "25:99", and two tasks with the same title on one pet, because `remove_task()` removes all of them, including future copies of a recurring task.
 
 ---
 
